@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
@@ -96,6 +97,8 @@ def fetch_feed(source, url):
     with urllib.request.urlopen(request, timeout=20) as response:
         root = ET.fromstring(response.read())
 
+    # וואלה מסמנים את השעה כ-GMT אבל בפועל זו שעון ישראל
+    local_time = "walla.co.il" in url
     items = []
     for item in root.iter("item"):
         title = clean(item.findtext("title"))
@@ -111,12 +114,15 @@ def fetch_feed(source, url):
             summary = summary[len(title):].strip(" .:-")
         if not title or not link.startswith("http"):
             continue
+        date = parse_date(item.findtext("pubDate"))
+        if date and local_time:
+            date = date.replace(tzinfo=ISRAEL)
         items.append({
             "title": title,
             "summary": summary,
             "link": link,
             "source": item_source,
-            "date": parse_date(item.findtext("pubDate")),
+            "date": date,
         })
     return items
 
@@ -222,6 +228,116 @@ def summarize_with_claude(category, candidates, api_key):
 CONFIG_FILE = ROOT / "config.json"
 
 
+# --- אנשים בכותרות הרכילות: זיהוי דרך ויקיפדיה העברית + Wikidata (רק ערכים של בני אדם) ---
+
+WIKI_API = "https://he.wikipedia.org/w/api.php"
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+WIKI_HEADERS = {"User-Agent": "DailyNewsAgent/1.0 (https://github.com/kleinda/Daily-News)"}
+PREFIXES = set("והלבמשכ")
+STRIP = "\"“”„«»:,.!?()[]–—-|"
+
+
+def wiki_get(url, params):
+    query = urllib.parse.urlencode({**params, "format": "json"})
+    request = urllib.request.Request(f"{url}?{query}", headers=WIKI_HEADERS)
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read())
+
+
+def name_candidates(headline):
+    """רצפים של 1–3 מילים מהכותרת, כולל גרסה בלי אותיות שימוש (וג'ניפר ← ג'ניפר)."""
+    tokens = [w.strip(STRIP).replace("׳", "'") for w in headline.split()]
+    found = set()
+    for i in range(len(tokens)):
+        first = tokens[i]
+        variants = {first}
+        if len(first) > 3 and first[0] in PREFIXES:
+            variants.add(first[1:])
+            if first[1] in PREFIXES:
+                variants.add(first[2:])
+        for n in (1, 2, 3):
+            rest = tokens[i + 1:i + n]
+            if len(rest) != n - 1 or not all(rest):
+                continue
+            for v in variants:
+                name = " ".join([v, *rest])
+                if len(name) >= 3 and (n > 1 or len(v) >= 4):
+                    found.add(name)
+    return found
+
+
+def find_people(headlines):
+    candidates = {c: h for h in headlines for c in name_candidates(h)}
+    pages = {}  # שם בכותרת -> (כותרת הערך, מזהה Wikidata)
+    names = sorted(candidates)
+    for start in range(0, len(names), 50):
+        query = wiki_get(WIKI_API, {"action": "query", "redirects": 1, "titles": "|".join(names[start:start + 50]),
+                                    "prop": "pageprops", "ppprop": "wikibase_item|disambiguation"})["query"]
+        aliases = {}
+        for step in query.get("normalized", []) + query.get("redirects", []):
+            aliases[step["to"]] = aliases.get(step["from"], step["from"])
+        for page in query.get("pages", {}).values():
+            props = page.get("pageprops", {})
+            if "missing" in page or "disambiguation" in props or "wikibase_item" not in props:
+                continue
+            pages[aliases.get(page["title"], page["title"])] = (page["title"], props["wikibase_item"])
+    if not pages:
+        return {}
+
+    qids = sorted({qid for _, qid in pages.values()})
+    entities = {}
+    for start in range(0, len(qids), 50):
+        entities.update(wiki_get(WIKIDATA_API, {"action": "wbgetentities", "ids": "|".join(qids[start:start + 50]),
+                                                "props": "claims|descriptions", "languages": "he"})["entities"])
+    humans = {}
+    for name, (title, qid) in pages.items():
+        entity = entities.get(qid, {})
+        kinds = [c["mainsnak"].get("datavalue", {}).get("value", {}).get("id") for c in entity.get("claims", {}).get("P31", [])]
+        if "Q5" in kinds:
+            humans[name] = (title, entity.get("descriptions", {}).get("he", {}).get("value", ""))
+    if not humans:
+        return {}
+
+    titles = sorted({title for title, _ in humans.values()})
+    details = {}
+    for start in range(0, len(titles), 20):
+        query = wiki_get(WIKI_API, {"action": "query", "titles": "|".join(titles[start:start + 20]),
+                                    "prop": "extracts|pageimages", "exintro": 1, "explaintext": 1,
+                                    "exsentences": 3, "piprop": "thumbnail", "pithumbsize": 400})["query"]
+        for page in query.get("pages", {}).values():
+            details[page["title"]] = page
+    people = {}
+    for name, (title, description) in humans.items():
+        page = details.get(title, {})
+        people[name] = {
+            "match": name,
+            "name": title,
+            "description": description,
+            "extract": re.sub(r"\s*\([^()]*\)", "", page.get("extract", "")).strip(),
+            "image": page.get("thumbnail", {}).get("source"),
+            "url": "https://he.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_")),
+        }
+    return people
+
+
+def add_people(stories):
+    try:
+        people = find_people([s["headline"] for s in stories])
+    except Exception as error:  # ויקיפדיה לא זמינה – הכותרות יוצגו בלי קישורים
+        log(f"  ⚠ זיהוי אנשים נכשל: {error}")
+        return
+    for story in stories:
+        # השם הארוך ביותר קודם, בלי חפיפות ("קיילי ג'נר" ולא גם "ג'נר")
+        taken, matched = [], []
+        for name in sorted(people, key=len, reverse=True):
+            at = story["headline"].find(name)
+            if at >= 0 and all(at + len(name) <= a or at >= b for a, b in taken):
+                taken.append((at, at + len(name)))
+                matched.append(people[name])
+        story["people"] = matched
+    log(f"  ✓ זוהו {len(people)} אנשים בכותרות")
+
+
 def load_config():
     return json.loads(CONFIG_FILE.read_text(encoding="utf-8")) if CONFIG_FILE.exists() else {}
 
@@ -262,6 +378,8 @@ def build():
             # בלי Claude: קודם ידיעות בעברית עם תקציר אמיתי מהמקור, ואנגלית רק כהשלמה
             ranked = sorted(candidates, key=lambda c: (not HEBREW.search(c["title"]), not c["summary"]))
             stories = [to_story(c, FALLBACK_ICONS[category][n]) for n, c in enumerate(ranked[:PER_CATEGORY])]
+        if category == "gossip":
+            add_people(stories)
         result["categories"][category] = stories
         seen_links.update(s["link"] for s in stories)
         log(f"  ✓ נבחרו {len(stories)} ידיעות")
