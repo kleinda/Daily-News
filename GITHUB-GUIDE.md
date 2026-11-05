@@ -17,34 +17,58 @@
 נכנסים ל־https://github.com ← **Sign up**, ונרשמים.
 
 ### 2. יצירת מאגר (Repository) חדש
-1. מחוברים ל־GitHub, לוחצים על **+** למעלה מימין ← **New repository**.
-2. **Repository name:** `DailyNews`
-3. בוחרים **Private** (מומלץ – רק אתה תראה את הקוד).
+1. נכנסים ל־https://github.com/new (מחוברים לחשבון).
+2. **Repository name:** `Daily-News`
+3. בוחרים **Public** – כדי שבהמשך אפשר יהיה לפרסם את האתר ברשת.
+   אין בפרויקט סיסמאות או מפתחות, כך שאין סיכון בחשיפת הקוד.
 4. **לא** לסמן "Add a README file", ולא להוסיף ‎.gitignore או License – הם כבר קיימים בפרויקט.
 5. לוחצים **Create repository**.
-6. מעתיקים את הכתובת שמופיעה בעמוד, בצורה:
-   `https://github.com/<שם-המשתמש>/DailyNews.git`
+6. כתובת המאגר: `https://github.com/kleinda/Daily-News.git`
 
-### 3. העלאת הקבצים
-פותחים **PowerShell** ומריצים שורה אחרי שורה
-(במקום `<שם-המשתמש>` – שם המשתמש שלך ב־GitHub):
+### 3. הסתרת כתובת המייל (חשוב במאגר ציבורי)
+כל שמירת גרסה (commit) מציגה את כתובת המייל של מי ששמר. כדי שהמייל האישי לא ייחשף:
+1. נכנסים ל־https://github.com/settings/emails
+2. מסמנים ✅ **Keep my email addresses private**.
+3. בפרויקט משתמשים בכתובת החלופית של GitHub (מופיעה בפקודות בשלב הבא):
+   `212429119+kleinda@users.noreply.github.com`
+
+### 4. העלאת הקבצים
+פותחים **PowerShell** (כפתור Start ← מקלידים `PowerShell` ← Enter) ומריצים את הפקודות לפי הסדר:
 
 ```powershell
 cd C:\CHAT_GPT_PROJECTS\DailyNews
 git init
+git config user.email "212429119+kleinda@users.noreply.github.com"
 git add .
 git commit -m "Daily news agent"
 git branch -M main
-git remote add origin https://github.com/<שם-המשתמש>/DailyNews.git
+git remote add origin https://github.com/kleinda/Daily-News.git
 git push -u origin main
 ```
 
-בפעם הראשונה ב־`git push` ייפתח חלון התחברות של GitHub ← **Sign in with your browser** ← מאשרים.
-ההתחברות נשמרת, ולא תצטרך לחזור עליה.
+**מה כל פקודה עושה:**
 
-### 4. בדיקה
-מרעננים את עמוד המאגר ב־GitHub. אמורים להופיע:
-`agent.py`, `server.py`, `index.html`, `start-news.bat`, `install-schedule.ps1`, `README.md`, `GITHUB-GUIDE.md`, `.gitignore`.
+| פקודה | פעולה |
+|---|---|
+| `cd ...` | נכנסת לתיקיית הפרויקט |
+| `git init` | הופכת את התיקייה למאגר Git |
+| `git config user.email ...` | קובעת שבפרויקט הזה יוצג המייל החלופי של GitHub ולא המייל האישי |
+| `git add .` | מסמנת את כל הקבצים להעלאה, חוץ ממה שמוחרג ב־`.gitignore` |
+| `git commit -m "..."` | שומרת "גרסה" של הקבצים, עם תיאור |
+| `git branch -M main` | קוראת לענף הראשי `main` |
+| `git remote add origin ...` | מקשרת את התיקייה למאגר שיצרת ב־GitHub |
+| `git push -u origin main` | מעלה את הקבצים ל־GitHub |
+
+**התחברות בפעם הראשונה:** ב־`git push` ייפתח חלון **Connect to GitHub**:
+1. לוחצים **Sign in with your browser**.
+2. בדפדפן לוחצים **Authorize git-ecosystem** (ואם מתבקשים – מתחברים עם סיסמה וקוד מהטלפון).
+3. חוזרים ל־PowerShell; ההעלאה מסתיימת בשורה `branch 'main' set up to track 'origin/main'`.
+
+ההתחברות נשמרת ב־Windows, ולא תצטרך לחזור עליה במחשב הזה.
+
+### 5. בדיקה
+נכנסים ל־https://github.com/kleinda/Daily-News. אמורים להופיע 9 קבצים:
+`agent.py`, `server.py`, `index.html`, `start-news.bat`, `install-schedule.ps1`, `README.md`, `GITHUB-GUIDE.md`, `.gitignore`, `news-digest-2026-11-05.html`.
 
 ---
 
@@ -73,13 +97,13 @@ python --version
 ```powershell
 mkdir C:\Projects -Force
 cd C:\Projects
-git clone https://github.com/<שם-המשתמש>/DailyNews.git
+git clone https://github.com/kleinda/Daily-News.git DailyNews
 cd DailyNews
 ```
-כיוון שהמאגר פרטי, ייפתח חלון התחברות ל־GitHub – מתחברים כמו במחשב הבית.
+המאגר ציבורי, כך שההורדה לא דורשת התחברות.
 
 **דרך 2 – בלי Git (הורדת ZIP)**
-1. נכנסים לעמוד המאגר ב־GitHub (מחוברים לחשבון).
+1. נכנסים ל־https://github.com/kleinda/Daily-News
 2. לוחצים על הכפתור הירוק **Code** ← **Download ZIP**.
 3. קליק ימני על הקובץ שירד ← **Extract All** ← לחלץ ל־`C:\Projects\DailyNews`.
 4. ⚠ בדרך זו עדכונים מחייבים להוריד ZIP חדש בכל פעם.
@@ -136,4 +160,4 @@ git pull
 | לשונית ריקה / "⚠" ליד מקור בחלון השחור | רשת הארגון (Firewall / Proxy) חוסמת את אתר החדשות. לבדוק בדפדפן שהאתר נפתח; אם חסום – לפנות ל־IT |
 | `Address already in use` / האתר לא עולה | האתר כבר רץ ברקע – פשוט לפתוח http://localhost:8000 |
 | `git push` נכשל עם `rejected` | קודם `git pull`, ואז שוב `git push` |
-| המתג "סיכומי Claude" אפור | לא הוגדר מפתח במחשב הזה (שלב ב'5), או שהאתר נפתח ישירות מהקובץ ולא דרך `start-news.bat` |
+| המתג "סיכומי Claude" אפור | לא הוגדר מפתח במחשב הזה (חלק ב', שלב 5), או שהאתר נפתח ישירות מהקובץ ולא דרך `start-news.bat` |

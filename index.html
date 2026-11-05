@@ -94,6 +94,7 @@
     .ai-toggle input:checked + .switch::after { transform: translateX(-18px); }
     .ai-toggle input:focus-visible + .switch { outline: 3px solid #f59e0b; outline-offset: 2px; }
     .ai-toggle.disabled { cursor: not-allowed; opacity: .55; }
+    .ai-toggle[hidden] { display: none; }
     .flag { width: 1.35em; height: 1em; vertical-align: -.12em; border-radius: 2px; box-shadow: 0 0 0 1px #0000001a; }
     .refresh:focus-visible, .tab:focus-visible, a:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; }
     .refresh:disabled { cursor: wait; opacity: .7; }
@@ -173,9 +174,11 @@
 
     @media (max-width: 560px) {
       .hero { padding: 14px 16px; }
-      .hero-row { flex-wrap: wrap; }
-      .hero h1 { white-space: normal; }
+      .hero-row { flex-wrap: wrap; gap: 8px 10px; }
+      .hero h1 { flex: 1; font-size: 1.3rem; }
       .hero-info { order: 3; flex-basis: 100%; }
+      .clock { font-size: .86rem; }
+      .refresh { padding: 8px 14px; font-size: .9rem; }
       nav { gap: 6px; }
       .tab { padding: 9px 12px; font-size: .9rem; }
       .section-heading { align-items: flex-start; flex-direction: column; }
@@ -250,7 +253,8 @@
   <script>
     const refreshButton = document.getElementById("refresh");
     const status = document.getElementById("status");
-    let lastAutomaticReload = "";
+    // עם server.py (מקומי) הכפתור מריץ את הסוכן; באתר ברשת (GitHub Pages) הוא טוען את העדכון האחרון
+    const hasServer = ["localhost", "127.0.0.1"].includes(location.hostname);
 
     function israelParts(date = new Date()) {
       return new Intl.DateTimeFormat("he-IL", {
@@ -362,19 +366,16 @@
     async function refreshNews() {
       refreshButton.disabled = true;
       refreshButton.classList.add("spinning");
-      status.textContent = "הסוכן אוסף ומסכם ידיעות מהמקורות…";
+      status.textContent = hasServer ? "הסוכן אוסף ומסכם ידיעות מהמקורות…" : "טוען את העדכון האחרון…";
       try {
-        let data;
-        if (location.protocol.startsWith("http")) {
+        if (hasServer) {
           const response = await fetch("api/refresh", { method: "POST" });
-          data = await response.json();
+          const data = await response.json();
           if (!response.ok) throw new Error(data.error || `שגיאה ${response.status}`);
+          render(data);
         } else {
-          data = await reloadDataFile();
-          status.dataset.note = "לרענון מלא מהמקורות יש להפעיל את server.py";
+          render(await reloadDataFile());
         }
-        render(data);
-        if (status.dataset.note) status.textContent += ` · ${status.dataset.note}`;
       } catch (error) {
         status.textContent = `הרענון נכשל: ${error.message}. נסו שוב בעוד רגע.`;
       } finally {
@@ -422,8 +423,10 @@
         : "לא הוגדר מפתח API (ANTHROPIC_API_KEY)";
     }
 
-    if (location.protocol.startsWith("http")) {
+    if (hasServer) {
       fetch("api/config").then(r => r.json()).then(showConfig).catch(() => {});
+    } else {
+      aiToggle.hidden = true;
     }
 
     useClaude.addEventListener("change", async () => {
@@ -450,15 +453,13 @@
     setInterval(updateClock, 1000);
     render(window.NEWS_DATA);
 
-    // הסוכן מתעדכן ב־08:00; דף פתוח טוען את התקציר החדש כמה דקות אחר כך
+    // הסוכן מתעדכן ב־08:00; דף פתוח בודק כל 10 דקות אם הגיע תקציר חדש
     setInterval(() => {
-      const p = israelParts();
-      const today = `${p.year}-${p.month}-${p.day}`;
-      if (p.hour === "08" && p.minute >= "03" && lastAutomaticReload !== today) {
-        lastAutomaticReload = today;
-        reloadDataFile().then(render).catch(() => {});
-      }
-    }, 30000);
+      const shown = window.NEWS_DATA && window.NEWS_DATA.generated;
+      reloadDataFile()
+        .then(data => { if (data && data.generated !== shown) render(data); })
+        .catch(() => {});
+    }, 10 * 60 * 1000);
   </script>
 </body>
 </html>
