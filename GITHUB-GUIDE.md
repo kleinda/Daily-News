@@ -171,8 +171,10 @@ git pull
 
 GitHub מריץ את הסוכן **פעמיים בשעה (בדקה 07 ובדקה 37) בין 06:00 ל־23:00** (שעון ישראל) ומפרסם את האתר – בלי שהמחשב שלך דולק.
 התקציר של הבוקר הוא ההרצה של 08:07. בלילה (00:00–05:00) אין עדכונים.
-(לא בשעה עגולה בדיוק – GitHub נוטה לדחות או לדלג על הרצות שמתוזמנות ל־:00.)
 ההרצה מוגדרת בקובץ `.github/workflows/daily-news.yml`.
+
+את ההרצות מפעיל השירות החיצוני **cron-job.org** (ראו "המתזמן החיצוני" למטה),
+כי התזמון המובנה של GitHub לא אמין – בפועל הוא לא רץ במשך שעות. התזמון של GitHub נשאר מוגדר כגיבוי.
 
 ### הפעלה חד־פעמית
 1. נכנסים ל־https://github.com/kleinda/Daily-News/settings/pages
@@ -186,6 +188,72 @@ GitHub מריץ את הסוכן **פעמיים בשעה (בדקה 07 ובדקה 
 (אין שם שרת שמריץ את הסוכן). דף פתוח בודק לבד כל 10 דקות אם הגיע עדכון.
 לעדכון מיידי מהמקורות – חוזרים על שלבים 3–4 למעלה. כל `git push` מעדכן את האתר גם הוא.
 
+### המתזמן החיצוני – cron-job.org
+
+**מה זה ולמה צריך:** cron-job.org הוא שירות חינמי ששולח בקשות לאינטרנט בזמנים קבועים.
+פעמיים בשעה הוא שולח ל־GitHub בקשה "הרץ עכשיו" – בדיוק כמו לחיצה ידנית על **Run workflow** –
+ו־GitHub מריץ את הסוכן ומפרסם את האתר מחדש.
+כדי ש־GitHub יקבל את הבקשה, היא נשלחת עם **מפתח גישה (token)** בשם `DailyNews`.
+המפתח מוגבל: הוא יכול רק להפעיל הרצות במאגר `Daily-News` – לא לשנות קוד ולא לגשת לשום דבר אחר בחשבון.
+
+**קישורים:**
+| מה | קישור |
+|---|---|
+| ניהול המשימה ב־cron-job.org (היסטוריית הרצות, עריכה, Test run) | https://console.cron-job.org/jobs |
+| המפתחות ב־GitHub | https://github.com/settings/personal-access-tokens |
+| ההרצות ב־GitHub (לבדוק שהן מגיעות) | https://github.com/kleinda/Daily-News/actions |
+
+#### הגדרה מאפס (אם צריך ליצור מחדש)
+
+**שלב 1 – מפתח ב־GitHub**
+1. https://github.com/settings/personal-access-tokens/new
+2. **Token name:** `DailyNews` · **Expiration:** **Custom** ← תאריך בעוד שנה.
+3. **Repository access** ← **Only select repositories** ← `kleinda/Daily-News`.
+4. **Permissions** ← בחלק **Repositories** ← **+ Add permissions** ← **Actions** ← **Read and write**.
+5. **Generate token** ← מעתיקים את המפתח (`github_pat_...`) – הוא מוצג פעם אחת בלבד.
+
+**שלב 2 – משימה ב־cron-job.org**
+1. https://console.cron-job.org/jobs ← **Create cronjob**.
+2. **URL:**
+   `https://api.github.com/repos/kleinda/Daily-News/actions/workflows/daily-news.yml/dispatches`
+3. **Execution schedule** ← **Custom** ← בשדה **Crontab expression** מקלידים:
+   `7,37 6-23 * * *`
+   (דקה 07 ו־37, שעות 6 עד 23, כל יום). אזור זמן: `Asia/Jerusalem`.
+4. לשונית **Advanced**:
+   - **Request method:** `POST`
+   - **Headers** (שלוש שורות):
+
+     | Key | Value |
+     |---|---|
+     | `Authorization` | `Bearer github_pat_...` (המילה Bearer, רווח, המפתח) |
+     | `Accept` | `application/vnd.github+json` |
+     | `User-Agent` | `cron-job` |
+   - **Request body:** `{"ref":"main"}`
+5. **Save** ← **Test run**. תוצאה תקינה: **`204 No Content`**.
+
+#### מה עושים בעוד שנה – חידוש המפתח (פג ב־5.11.2027)
+
+GitHub שולח מייל תזכורת כשבוע לפני שהמפתח פג. אחרי שפג – האתר מפסיק להתעדכן,
+וב־cron-job.org ההרצות מופיעות באדום עם `401`.
+
+1. נכנסים ל־https://github.com/settings/personal-access-tokens ← לוחצים על **DailyNews**.
+2. לוחצים **Regenerate token** ← בוחרים תוקף חדש (שנה) ← **Regenerate token**.
+   ההרשאות נשמרות; רק הערך של המפתח מתחלף.
+3. מעתיקים את הערך החדש (`github_pat_...`).
+4. נכנסים ל־https://console.cron-job.org/jobs ← לוחצים על המשימה ← **Advanced** ← **Headers**
+   ← בשורה `Authorization` מוחקים את הערך הישן וכותבים `Bearer ` + המפתח החדש.
+5. **Save** ← **Test run** ← לוודא **`204`**.
+6. לבדיקה סופית: ב־https://github.com/kleinda/Daily-News/actions מופיעה הרצה חדשה עם ✅.
+
+#### תקלות
+
+| מה רואים ב־Test run | הסיבה | פתרון |
+|---|---|---|
+| `204 No Content` | תקין ✅ | – |
+| `401` | המפתח פג, נמחק או הודבק חלקית | לחדש את המפתח (למעלה) |
+| `404 Not Found` | נבחר GET במקום POST, או הודבק מפתח אחר שאין לו גישה למאגר | לבדוק Request method = POST ואת המפתח בשורת Authorization |
+| `422` | Request body שגוי | לכתוב בדיוק `{"ref":"main"}` |
+
 ### סיכומי Claude באתר ברשת (לא חובה, בתשלום)
 המתג לא מוצג לגולשים, כדי שזרים לא יוכלו להפעיל חיובים.
 ⚠ כש־Claude מופעל, הוא רץ בכל עדכון שעתי – כ־36 פעמים ביום (3 בקשות בכל פעם). להפעלה:
@@ -196,5 +264,5 @@ GitHub מריץ את הסוכן **פעמיים בשעה (בדקה 07 ובדקה 
 לכיבוי – משנים את `USE_CLAUDE` ל־`false`.
 
 ### שים לב
-- שעון ההרצות של GitHub עלול להתעכב בכמה דקות ועד כחצי שעה בשעות עומס.
+- אם האתר מפסיק להתעדכן – קודם בודקים ב־https://console.cron-job.org/jobs שההרצות ירוקות.
 - אם לשונית מופיעה ריקה – ייתכן שאתר מקור חוסם גישה משרתי GitHub (בחו"ל). ניתן לראות זאת בלוג ההרצה תחת Actions.
