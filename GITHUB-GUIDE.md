@@ -4,6 +4,7 @@
 - **חלק א'** – במחשב הבית: מעלים את הפרויקט ל־GitHub (פעם אחת).
 - **חלק ב'** – במחשב העבודה: מורידים ומפעילים.
 - **חלק ג'** – עדכונים שוטפים בין המחשבים.
+- **חלק ד'** – האתר ברשת (GitHub Pages).
 
 > 🔒 **מפתח ה־API לא עולה ל־GitHub.** הוא שמור רק בהגדרות Windows של כל מחשב, ולא בשום קובץ בפרויקט.
 > גם קבצי הנתונים (`news-data.js`, תיקיית `data`) וקובץ ההגדרות `config.json` לא עולים –
@@ -161,3 +162,35 @@ git pull
 | `Address already in use` / האתר לא עולה | האתר כבר רץ ברקע – פשוט לפתוח http://localhost:8000 |
 | `git push` נכשל עם `rejected` | קודם `git pull`, ואז שוב `git push` |
 | המתג "סיכומי Claude" אפור | לא הוגדר מפתח במחשב הזה (חלק ב', שלב 5), או שהאתר נפתח ישירות מהקובץ ולא דרך `start-news.bat` |
+
+---
+
+## חלק ד' – האתר ברשת (GitHub Pages)
+
+כתובת האתר: **https://kleinda.github.io/Daily-News/**
+
+GitHub מריץ את הסוכן בכל יום ב־08:00 (שעון ישראל) ומפרסם את האתר – בלי שהמחשב שלך דולק.
+ההרצה מוגדרת בקובץ `.github/workflows/daily-news.yml`.
+
+### הפעלה חד־פעמית
+1. נכנסים ל־https://github.com/kleinda/Daily-News/settings/pages
+2. תחת **Build and deployment** ← **Source** בוחרים **GitHub Actions**.
+3. נכנסים ל־https://github.com/kleinda/Daily-News/actions/workflows/daily-news.yml
+4. לוחצים **Run workflow** ← **Run workflow** (הכפתור הירוק).
+5. אחרי כדקה, כשמופיע ✅ ירוק, האתר זמין בכתובת למעלה.
+
+### עדכון ידני של האתר ברשת
+באתר ברשת כפתור "רענון חדשות" טוען את העדכון האחרון שפורסם (אין שם שרת שמריץ את הסוכן).
+לעדכון מיידי מהמקורות – חוזרים על שלבים 3–4 למעלה. כל `git push` מעדכן את האתר גם הוא.
+
+### סיכומי Claude באתר ברשת (לא חובה, בתשלום)
+המתג לא מוצג לגולשים, כדי שזרים לא יוכלו להפעיל חיובים. להפעלה בריצה היומית:
+1. https://github.com/kleinda/Daily-News/settings/secrets/actions ← **New repository secret**
+   ← Name: `ANTHROPIC_API_KEY`, Secret: המפתח ← **Add secret** (נשמר מוצפן, לא גלוי לאף אחד).
+2. https://github.com/kleinda/Daily-News/settings/variables/actions ← **New repository variable**
+   ← Name: `USE_CLAUDE`, Value: `true` ← **Add variable**.
+לכיבוי – משנים את `USE_CLAUDE` ל־`false`.
+
+### שים לב
+- שעון ההרצות של GitHub עלול להתעכב בכמה דקות ועד כחצי שעה בשעות עומס.
+- אם לשונית מופיעה ריקה – ייתכן שאתר מקור חוסם גישה משרתי GitHub (בחו"ל). ניתן לראות זאת בלוג ההרצה תחת Actions.
