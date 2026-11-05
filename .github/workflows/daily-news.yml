@@ -1,12 +1,12 @@
-# Runs the news agent every day at 08:00 Israel time and publishes the site to GitHub Pages.
-# GitHub cron is UTC-only: 05:00 UTC = 08:00 in Israeli summer time, 06:00 UTC = 08:00 in winter.
-# Both are scheduled, and the "check" step keeps only the one that matches today's Israel offset.
+# Runs the news agent every hour from 06:00 to 23:00 Israel time (the morning digest is the 08:00 run)
+# and publishes the site to GitHub Pages.
+# GitHub cron is UTC-only: 03:00-21:00 UTC covers 06:00-23:00 Israel time in both summer (+3) and
+# winter (+2); the "check" step skips the runs that fall outside those Israel hours.
 name: Daily News
 
 on:
   schedule:
-    - cron: "0 5 * * *"
-    - cron: "0 6 * * *"
+    - cron: "0 3-21 * * *"
   push:
     branches: [main]
   workflow_dispatch:
@@ -32,15 +32,13 @@ jobs:
         shell: python
         env:
           EVENT: ${{ github.event_name }}
-          SCHEDULE: ${{ github.event.schedule }}
         run: |
           import os
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          offset = datetime.now(ZoneInfo("Asia/Jerusalem")).utcoffset().total_seconds() / 3600
-          expected = "0 5 * * *" if offset == 3 else "0 6 * * *"
-          run = os.environ["EVENT"] != "schedule" or os.environ["SCHEDULE"] == expected
-          print(f"Israel UTC offset {offset:+.0f}, run = {run}")
+          hour = datetime.now(ZoneInfo("Asia/Jerusalem")).hour
+          run = os.environ["EVENT"] != "schedule" or 6 <= hour <= 23
+          print(f"Israel hour {hour:02d}, run = {run}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"run={'true' if run else 'false'}\n")
 
