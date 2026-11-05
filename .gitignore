@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+
+# Data the agent creates on every run (each computer builds its own)
+news-data.js
+data/
+
+# Per-computer settings (Claude switch on the site); missing file = Claude off
+config.json
