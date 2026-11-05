@@ -1,4 +1,4 @@
-# Runs the news agent every hour from 06:00 to 23:00 Israel time (the morning digest is the 08:00 run)
+# Runs the news agent twice an hour (:07, :37) from 06:00 to 23:00 Israel time (morning digest: 08:07)
 # and publishes the site to GitHub Pages.
 # GitHub cron is UTC-only: 03:00-21:00 UTC covers 06:00-23:00 Israel time in both summer (+3) and
 # winter (+2); the "check" step skips the runs that fall outside those Israel hours.
@@ -6,7 +6,8 @@ name: Daily News
 
 on:
   schedule:
-    - cron: "0 3-21 * * *"
+    # Not on :00 - GitHub delays or drops top-of-hour schedules under load
+    - cron: "7,37 3-21 * * *"
   push:
     branches: [main]
   workflow_dispatch:
