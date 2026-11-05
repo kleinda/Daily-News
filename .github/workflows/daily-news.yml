@@ -61,7 +61,7 @@ jobs:
           echo '{"use_claude": ${{ vars.USE_CLAUDE == 'true' }}}' > config.json
           python agent.py
           mkdir -p site
-          cp index.html news-data.js site/
+          cp index.html news-data.js apple-touch-icon.png site/
 
       - uses: actions/configure-pages@v5
         if: steps.check.outputs.run == 'true'
