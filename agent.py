@@ -52,11 +52,52 @@ SOURCES = {
 }
 
 CATEGORY_NAMES = {"il": "חדשות בארץ (ישראל)", "world": "חדשות בעולם", "gossip": "רכילות, סלבס ובידור"}
-FALLBACK_ICONS = {
-    "il": ["🏛️", "🛡️", "💼", "⚖️", "🏙️", "🚓", "🏥", "🎓", "🚧", "📢"],
-    "world": ["🌐", "🗳️", "✈️", "💹", "🕊️", "🏛️", "⚡", "🌍", "🛰️", "📰"],
-    "gossip": ["✨", "🎬", "🎤", "💃", "📸", "💍", "📺", "🎶", "👗", "🌟"],
-}
+# אייקון לפי מילות מפתח: קודם בכותרת, אחר כך בתקציר; הכלל הראשון שמתאים קובע.
+# מילה נבדקת מתחילתה, עם אותיות שימוש אופציונליות (ו, ה, ב, ל, מ, ש, כ)
+ICON_RULES = [
+    ("🎂", r"יום הולדת|יום הולדתו|יום הולדתה|birthday"),
+    ("💍", r"חתונ|התחתנ|אירוסי|התארס|נישוא|wedding|engaged"),
+    ("👶", r"תינוק|הריון|בהריון|נולד|לידה|baby|pregnan"),
+    ("💔", r"גירושי|נפרד|פרידה|התגרש|divorce|split"),
+    ("🕯️", r"נפטר|הלך לעולמו|הלוויה|הלווית|מותו|מותה|died|death|funeral"),
+    ("🚀", r"טיל|רקט|יירוט|כטב\"ם|אזעקה|אזעקות|missile|rocket"),
+    ("🛡️", r"צה\"ל|מלחמ|חיזבאללה|חמאס|לחימה|צבא|חייל|מחבל|פיגוע|חטופ|עזה|לבנון|לבנונ|איראן|איראנ|טהרן|military|army|war|hamas|hezbollah|iran"),
+    ("🚓", r"משטר|נעצר|עצור|רצח|נרצח|ירי|דקירה|שוד|חשוד|פשע|police|arrest|murder|shooting"),
+    ("⚖️", r"בית משפט|בית המשפט|בג\"ץ|שופט|כתב אישום|עתיר|פרקליט|משפטו|court|judge|trial|lawsuit"),
+    ("🗳️", r"בחירות|קלפי|סקר|מנדט|נשיאות|מועמד|election|vote|poll"),
+    ("🏛️", r"כנסת|ממשל|קואליצי|אופוזיצי|השר|ראש הממשלה|נתניהו|חוק|parliament|congress|senate|government"),
+    ("🇺🇸", r"טראמפ|ארה\"ב|וושינגטון|הבית הלבן|ביידן|trump|white house|washington"),
+    ("🇷🇺", r"רוסיה|פוטין|אוקראינ|זלנסקי|russia|putin|ukrain"),
+    ("🇨🇳", r"סין|סיני|בייג'ינג|china|beijing"),
+    ("🇪🇺", r"אירופ|האיחוד האירופי|בריסל|europe|eu"),
+    ("💹", r"כלכל|בורס|מניות|מחירי|מחירים|יוקר|אינפלצי|ריבית|שקל|דולר|תקציב|מסים|מיסים|economy|market|stocks|inflation|budget"),
+    ("🏥", r"בריאות|בית חולים|רופא|חולים|מחלה|נגיף|חיסון|אשפוז|ניתוח|כריתת|סרטן|מפרצת|health|hospital|virus|vaccine"),
+    ("🌧️", r"מזג אוויר|מזג האוויר|גשם|סערה|שרב|שלג|הצפ|weather|storm|flood"),
+    ("🔥", r"שריפ|דליק|בער|fire|wildfire"),
+    ("🌋", r"רעידת אדמה|הוריקן|צונאמי|אסון|earthquake|hurricane|tsunami"),
+    ("🚗", r"תאונ|כביש|תנועה|רכב|נהג|accident|crash"),
+    ("✈️", r"טיסה|טיסות|נתב\"ג|נמל תעופה|מטוס|flight|airport|airline"),
+    ("💻", r"טכנולוגי|סייבר|בינה מלאכותית|ai|אפל|גוגל|אינטרנט|אפליקצי|tech|cyber|google|apple"),
+    ("🎓", r"חינוך|בית ספר|תלמיד|מורים|אוניברסיט|סטודנט|school|education|university"),
+    ("🕊️", r"שלום|הסכם|הפסקת אש|משא ומתן|עסקה|peace|ceasefire|deal|talks"),
+    ("🎬", r"סרט|קולנוע|הוליווד|נטפליקס|movie|film|netflix|hollywood"),
+    ("📺", r"סדרה|ריאליטי|האח הגדול|טלוויזי|פרק|עונת|series|reality|tv"),
+    ("🎤", r"שיר|זמר|זמרת|הופעה|אלבום|קליפ|אירוויזיון|מוזיקה|song|singer|concert|album|music"),
+    ("👗", r"אופנה|שמלה|לוק|שטיח האדום|דוגמנ|fashion|dress|red carpet|model"),
+    ("📸", r"תמונה|תמונות|אינסטגרם|פוסט|צילום|photo|instagram"),
+]
+ICON_RULES = [(icon, re.compile(rf"(?<![א-תa-z])[והבלמשכ]{{0,3}}(?:{pattern})", re.IGNORECASE))
+              for icon, pattern in ICON_RULES]
+DEFAULT_ICON = {"il": "📰", "world": "🌐", "gossip": "✨"}
+
+
+def pick_icon(category, item):
+    for text in (item["title"], item["summary"]):
+        for icon, pattern in ICON_RULES:
+            if pattern.search(text):
+                return icon
+    return DEFAULT_ICON[category]
+
 
 SPORTS = re.compile(
     r"ספורט|כדורגל|כדורסל|טניס|פורמולה|ליגת|מונדיאל|אולימפי|שחקן הרכש|מכבי ת\"א|הפועל|בית\"ר|"
@@ -218,7 +259,7 @@ def summarize_with_claude(category, candidates, api_key):
     stories = []
     for pick in picks[:PER_CATEGORY]:
         item = candidates[int(pick["index"])]
-        story = to_story(item, pick.get("icon") or FALLBACK_ICONS[category][len(stories)])
+        story = to_story(item, pick.get("icon") or pick_icon(category, item))
         story["headline"] = pick["headline"].strip()
         story["summary"] = pick["summary"].strip()
         stories.append(story)
@@ -377,7 +418,7 @@ def build():
         if stories is None:
             # בלי Claude: קודם ידיעות בעברית עם תקציר אמיתי מהמקור, ואנגלית רק כהשלמה
             ranked = sorted(candidates, key=lambda c: (not HEBREW.search(c["title"]), not c["summary"]))
-            stories = [to_story(c, FALLBACK_ICONS[category][n]) for n, c in enumerate(ranked[:PER_CATEGORY])]
+            stories = [to_story(c, pick_icon(category, c)) for c in ranked[:PER_CATEGORY]]
         if category == "gossip":
             add_people(stories)
         result["categories"][category] = stories
