@@ -1,4 +1,4 @@
-"""סוכן החדשות היומי: אוסף ידיעות ממקורות RSS אמינים, מסנן ספורט, ובוחר 5 ידיעות לכל קטגוריה.
+"""סוכן החדשות היומי: אוסף ידיעות ממקורות RSS אמינים, מסנן ספורט, ובוחר 10 ידיעות לכל קטגוריה.
 
 הרצה:  python agent.py
 פלט:   data/news.json + news-data.js (נטען ע"י index.html, עובד גם בפתיחה ישירה של הקובץ)
@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 ISRAEL = ZoneInfo("Asia/Jerusalem")
-PER_CATEGORY = 5
+PER_CATEGORY = 10
 MAX_AGE = timedelta(hours=36)
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 
@@ -53,9 +53,9 @@ SOURCES = {
 
 CATEGORY_NAMES = {"il": "חדשות בארץ (ישראל)", "world": "חדשות בעולם", "gossip": "רכילות, סלבס ובידור"}
 FALLBACK_ICONS = {
-    "il": ["🏛️", "🛡️", "💼", "⚖️", "🏙️"],
-    "world": ["🌐", "🗳️", "✈️", "💹", "🕊️"],
-    "gossip": ["✨", "🎬", "🎤", "💃", "📸"],
+    "il": ["🏛️", "🛡️", "💼", "⚖️", "🏙️", "🚓", "🏥", "🎓", "🚧", "📢"],
+    "world": ["🌐", "🗳️", "✈️", "💹", "🕊️", "🏛️", "⚡", "🌍", "🛰️", "📰"],
+    "gossip": ["✨", "🎬", "🎤", "💃", "📸", "💍", "📺", "🎶", "👗", "🌟"],
 }
 
 SPORTS = re.compile(
@@ -198,7 +198,7 @@ def summarize_with_claude(category, candidates, api_key):
     )
     body = json.dumps({
         "model": CLAUDE_MODEL,
-        "max_tokens": 2500,
+        "max_tokens": 5000,
         "messages": [{"role": "user", "content": prompt}],
     }).encode()
     request = urllib.request.Request(
@@ -371,7 +371,7 @@ def build():
         stories = None
         if api_key and candidates:
             try:
-                stories = summarize_with_claude(category, candidates[:18], api_key)
+                stories = summarize_with_claude(category, candidates[:30], api_key)
             except Exception as error:
                 log(f"  ⚠ סיכום Claude נכשל, משתמש בתקצירי המקור: {error}")
         if stories is None:
